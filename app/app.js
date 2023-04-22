@@ -30,6 +30,31 @@ app.post('/school-meal', async (request, response)=>{
     }
 });
 
+app.post('/school-schedule', async (request, response)=>{
+    const utterance = request.body.userRequest.utterance;
+
+    if(utterance === "오늘의 일정"){
+        const today = new Date(2023, 3, 3);
+
+        const schedules = await crawlTodaySchedule(today.getDate());
+        
+        const chatbotResponse = {
+            "version": "2.0",
+            "template": {
+                "outputs": [
+                    {
+                        "simpleText": {
+                            "text": schedules
+                        }
+                    }
+                ]
+            }
+        }
+
+        response.json(chatbotResponse)
+    }
+})
+
 async function crawlTodaysMenu(day){
     const browser = await puppeteer.launch();
     const page = await browser.newPage();
@@ -63,9 +88,33 @@ async function crawlTodaysMenu(day){
     return "오늘은 급식이 없는 날입니다.";
 }
 
+async function crawlTodaySchedule(day) {
+    const browser = await puppeteer.launch();
+    const page = await browser.newPage();
+    await page.goto('https://sunrint.sen.hs.kr/88411/subMenu.do');
+
+    const tds = await page.$$('.calendar_schedule > table > tbody > tr > td');
+
+    for await (const td of tds){
+        const tdDay = await td.evaluate(td=>td.innerText);
+
+        const splits = tdDay.split("\n");
+
+        if(splits[0] == day){
+            return splits[1];
+        }
+    }
+    
+    await page.close();
+    await browser.close();
+
+    return "오늘은 일정이 없는 날입니다.";
+
+}
+
 app.get('/crawling/test', async (request, response)=>{
-    const month = 8;
-    const day = 20;
+    const month = 4;
+    const day = 7;
 
     const browser = await puppeteer.launch();
     const page = await browser.newPage();
@@ -124,4 +173,4 @@ app.get('/crawling/test', async (request, response)=>{
     await browser.close();
 });
 
-app.listen(3000, ()=> console.log("node on 3000"));
+app.listen(3001, ()=> console.log("node on 3001"));
